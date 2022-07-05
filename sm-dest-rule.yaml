@@ -1,0 +1,30 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: apache
+spec:
+  host: frontend-pg.test-app-sm3.svc.cluster.local
+  subsets:
+  - labels:
+      version: v1
+    name: v1
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: backend
+spec:
+  host: backend-postgres.test-app-sm3.svc.cluster.local
+  subsets:
+  - labels:
+      version: v1
+    name: v1
+  #host: "*.svc.cluster.local"
+  trafficPolicy:
+    tls:
+      #mode: DISABLE
+      mode: ISTIO_MUTUAL

@@ -1,0 +1,37 @@
+
+# Ref: https://www.howtoforge.com/postgresql-ssl-certificates
+# For test purpose only, please use your own certificate.
+
+########################
+# Postgres Server Cert
+
+cd /var/lib/pgsql/data
+openssl genrsa -des3 -out server.key 1024
+openssl rsa -in server.key -out server.key
+
+chmod 400 server.key
+chown postgres.postgres server.key
+
+openssl req -new -key server.key -days 3650 -out server.crt -x509 -subj '/C=CA/ST=ON/L=TO/O=RedHat/CN=RedHat/emailAddress=szobair@redhat.com'
+
+cp server.crt root.crt
+
+#########################
+# Client Cert for frontend app
+
+mkdir CLIENT
+openssl genrsa -des3 -out postgresql.key 1024
+openssl rsa -in postgresql.key -out postgresql.key
+
+openssl req -new -key postgresql.key -out postgresql.csr -subj '/C=CA/ST=ON/L=TO/O=RedHat/CN=shah'    #<< CN as username of DB
+openssl x509 -req -in postgresql.csr -CA ../root.crt -CAkey ../server.key -out postgresql.crt -CAcreateserial   #<< Using root.crt and server.key
+
+#########################
+# Cert for Apache Server
+# https://gist.github.com/Soarez/9688998
+openssl genrsa -out ca.key 2048
+openssl req -new -x509 -key ca.key -out ca.crt
+openssl genrsa -out apache.key 2048
+vi cert.conf
+openssl req -new -out apache.csr -config cert.conf
+openssl x509 -req -in apache.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out apache.crt

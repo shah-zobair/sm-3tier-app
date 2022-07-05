@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: populate-db
+data:
+  populate-db.sh: |
+    #!/bin/bash
+
+    echo "CREATE TABLE dummy (name varchar(50), id int);" | PGPASSWORD=pass psql db -h backend-postgres -U user
+    echo "INSERT INTO dummy (name, id) values ('shah',1);" | PGPASSWORD=pass psql db -h backend-postgres -U user
+    echo "INSERT INTO dummy (name, id) values ('mike',2);" | PGPASSWORD=pass psql db -h backend-postgres -U user
+    echo "INSERT INTO dummy (name, id) values ('alex',3); INSERT INTO dummy (name, id) values ('sean',4);" | PGPASSWORD=pass psql db -h backend-postgres -U user
+    echo "SELECT * FROM dummy;" | PGPASSWORD=pass psql db -h backend-postgres -U user
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: populate-db
+spec:
+  parallelism: 1    
+  completions: 1    
+  activeDeadlineSeconds: 1800 
+  backoffLimit: 6   
+  template:         
+    metadata:
+      name: populate-db
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+      - name: populate-db
+        image: registry.redhat.io/rhel8/postgresql-12
+        command: ["/bin/sh",  "-C", "/script/populate-db.sh"]
+        volumeMounts:
+        - name: script-volume
+          mountPath: /script/populate-db.sh
+          subPath: populate-db.sh
+      volumes:
+        - name: script-volume
+          configMap:
+            name: populate-db
+            defaultMode: 0777
+      restartPolicy: OnFailure

@@ -1,0 +1,83 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: test-gateway
+spec:
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+  - port:
+      #number: 80
+      number: 443
+      name: http
+      #protocol: HTTP
+      protocol: HTTPS
+    hosts:
+    - "*"
+    tls:
+      mode: SIMPLE
+      credentialName: frontend-cert
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: apache
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - test-app-sm3/test-gateway
+  http:
+  - match:
+    - uri:
+        exact: /
+    - uri:
+        prefix: /db
+    route:
+    - destination:
+        host: frontend-pg.test-app-sm3.svc.cluster.local
+        subset: v1
+        port:
+          number: 80
+      weight: 100
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: db-gateway
+spec:
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+  - port:
+      number: 5432
+      name: tcp
+      protocol: TCP
+    hosts:
+    - "*"
+    #tls:
+      #mode: SIMPLE
+      #serverCertificate: /tmp/tls.crt
+      #privateKey: /tmp/tls.key
+      #credentialName: frontend-cert
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: db
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - test-app-sm3/db-gateway
+  tcp:
+  - match:
+    - port: 5432
+    route:
+    - destination:
+        host: backend-postgres.test-app-sm3.svc.cluster.local
+        subset: v1
+        port:
+          number: 5432
+      weight: 100
